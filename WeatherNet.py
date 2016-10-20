@@ -64,26 +64,35 @@ class Hneuron():
         self.ident = ident
         self.prevW = prevW #may not be needed
         self.follW = follW #may not be needed
-        self.weights = [random.randint(-5,5)] * follW
+        self.weights = []
+        for i in range(follW):
+            self.weights.append(random.randint(-5,5))
         self.output = 0
         self.maxInput = prevW * 5
     def calculate(self,prevList):
-        total = 0
+        total = 0.0
         for item in prevList:
-            total += (item.output * item.weights[self.ident])
+            total += (float(item.output) * float(item.weights[self.ident]))
         testing = total
         total = float(total)/float(self.maxInput)
         if total >= 0.5:
             self.output = 1
         else:
-            self.output = 0
-        if random.randint(0,400) > 396:
-            print("Hidden Neuron ident #%s, totalled %s and hype is %s" % (str(self.ident),str(testing),str(total)))
+            self.output = 0.1
+        #self.toString()
+        #if random.randint(0,400) > 396:
+        #    print("Hidden Neuron ident #%s, totalled %s and hype is %s" % (str(self.ident),str(testing),str(total)))
+    def toString(self):
+        print("Hneuron ident #%s\n" % (str(self.ident)))
+        print("Weights are: "+str(self.weights))
+        print("Output is: " + str(self.output))
 
 class Ineuron():
     def __init__(self,follW,ident):
         self.follW = follW #may not be needed
-        self.weights = [random.randint(-5,5)] * follW
+        self.weights = []
+        for i in range(follW):
+            self.weights.append(random.randint(-5,5))
         self.output = 0
         self.ident = ident
     def calculate(self,fromMap):
@@ -92,11 +101,16 @@ class Ineuron():
         if hype > 0.5:
             self.output = 1
         else:
-            self.output = 0
+            self.output = 0.1
         
         #random sample 
-        if random.randint(0,400) > 396:
-            print("Input Neuron ident #%s, recieved %s and hype is %s" % (str(self.ident),str(fromMap),str(hype)))
+        #if random.randint(0,400) > 396:
+        #    print("Input Neuron ident #%s, recieved %s and hype is %s" % (str(self.ident),str(fromMap),str(hype)))
+        #self.toString()
+    def toString(self):
+        print("Ineuron ident #%s\n" % (str(self.ident)))
+        print("Weights are: "+str(self.weights))
+        print("Output is: " + str(self.output))
         
 class Oneuron():
     def __init__(self,ident):
@@ -108,9 +122,13 @@ class Oneuron():
         total = 0
         for item in prevList:
             total +=item.output * item.weights[self.ident]
-        total = float(total) / float(maxOut)
-        total *= 255
+        total = float(total) / (float(maxOut) * 5)
+        total = total * 255000
         self.output = total
+        #self.toString()
+    def toString(self):
+        print("Oneuron ident #%s\n" % (str(self.ident)))
+        print("Output is: " + str(self.output))
 
 class nn():
     def __init__(self,inSize,hiddenLayers,hiddenWidth,outSize):
@@ -143,7 +161,10 @@ class nn():
         ticker = 0
         for i in range(40):
             for j in range(40):
-                self.inputs[ticker].calculate(tempMap[i][j])
+                try:
+                    self.inputs[ticker].calculate(tempMap[i][j])
+                except:
+                    pass
                 ticker+=1
         for layer in range(self.hiddenLayers):
             for neuron in range(self.hiddenWidth):
