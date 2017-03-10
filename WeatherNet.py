@@ -19,7 +19,18 @@ white = (255,255,255)
 black = (0,0,0)
 display.fill(white)
 
-heatmap = pygame.image.load('testmap.png')
+heatmap = pygame.image.load('test1.png')
+
+def translate(value, leftMin = -2000, leftMax = 2000, rightMin = 0, rightMax = 255):
+    # Figure out how 'wide' each range is
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
+
+    # Convert the left range into a 0-1 range (float)
+    valueScaled = float(value - leftMin) / float(leftSpan)
+
+    # Convert the 0-1 range into a value in the right range.
+    return rightMin + (valueScaled * rightSpan)
 
 def render(image,x,y,w,h):
     image = pygame.transform.scale(image,(w,h))
@@ -32,8 +43,10 @@ def makeTempMap(size):
         tempMap[i] = [None] * size
     for i in range(size):
         for j in range(size):
-            color = display.get_at((i*10,j*10))[0]
-            tempMap[i][j] = color
+            color = display.get_at((i*10,j*10))
+            if color[0] >=250 and color[1] >= 250 and color[2] >= 250:
+                color[0] = 127
+            tempMap[i][j] = color[0]
     return tempMap
 
 def fixRawOut(raw,size):
@@ -53,11 +66,8 @@ def renderOut(out):
                 pygame.draw.rect(display,color,((i*10)+400,j*10,40,40))
             except:
                 print(str(color))
-            pygame.display.update()
-            
-            
-            
-
+        pygame.display.update()
+        
 class Hneuron():
     def __init__(self,layer,ident,prevW,follW):
         self.layer = layer
@@ -73,12 +83,8 @@ class Hneuron():
         total = 0.0
         for item in prevList:
             total += (float(item.output) * float(item.weights[self.ident]))
-        testing = total
         total = float(total)/float(self.maxInput)
-        if total >= 0.5:
-            self.output = 1
-        else:
-            self.output = 0.1
+        self.output = total
         #self.toString()
         #if random.randint(0,400) > 396:
         #    print("Hidden Neuron ident #%s, totalled %s and hype is %s" % (str(self.ident),str(testing),str(total)))
@@ -86,6 +92,24 @@ class Hneuron():
         print("Hneuron ident #%s\n" % (str(self.ident)))
         print("Weights are: "+str(self.weights))
         print("Output is: " + str(self.output))
+    def backProp(self,target,hidden,inputs):
+        total = 0
+        
+        for item in prevList:
+            total+= item.output * item.weights[self.ident]
+
+        error = target - total
+
+        current_average = total / len(prevList)
+        target_average = target/ len(prevList)
+
+        average_error = target_average - current_average
+        for i in range(0,len(prevList)):
+            perscription = prevList[i].weights[self.ident] + avgdiff
+            perscription += (1/3) * (prevList[i].weights[self.ident] - target_average)
+            prevList[i].backProp(perscription)
+        
+        
 
 class Ineuron():
     def __init__(self,follW,ident):
@@ -98,10 +122,7 @@ class Ineuron():
     def calculate(self,fromMap):
         
         hype = float(fromMap)/float(255)
-        if hype > 0.5:
-            self.output = 1
-        else:
-            self.output = 0.1
+        self.output = hype
         
         #random sample 
         #if random.randint(0,400) > 396:
@@ -123,12 +144,29 @@ class Oneuron():
         for item in prevList:
             total +=item.output * item.weights[self.ident]
         total = float(total) / (float(maxOut) * 5)
-        total = total * 255000
+        total = total * 2550000000
         self.output = total
         #self.toString()
     def toString(self):
         print("Oneuron ident #%s\n" % (str(self.ident)))
         print("Output is: " + str(self.output))
+    def backProp(self,target,prevList):
+        perscriptionList = []
+        total = 0
+        for item in prevList:
+            total+= item.output * item.weights[self.ident]
+
+        error = target - total
+
+        current_average = total / len(prevList)
+        target_average = target/ len(prevList)
+
+        average_error = target_average - current_average
+        for i in range(len(prevList)):
+            perscription = prevList[i].weights[self.ident] + average_error
+            perscription += (1/3) * (prevList[i].weights[self.ident] - target_average)
+            perscriptionList.append(perscription)
+        return perscriptionList
 
 class nn():
     def __init__(self,inSize,hiddenLayers,hiddenWidth,outSize):
@@ -139,12 +177,12 @@ class nn():
         for x in range(inSize):
             self.inputs.append(Ineuron(hiddenWidth,x))
         for y in range(outSize):
-            self.outputs.append(Oneuron(y))
-        
+            self.outputs.append(Oneuron(y))        
         self.hidden = [None] * hiddenLayers
         for z in range(hiddenLayers):
             self.hidden[z] = [None] * hiddenWidth
         for i in range(hiddenLayers):
+            print("Creating Hidden Layer %s of %s.." % (str(i),str(self.hiddenLayers)))
             for j in range(hiddenWidth):
                 if i == 0 and hiddenLayers > 1:
                     self.hidden[i][j] = Hneuron(i,j,inSize,hiddenWidth)
@@ -174,17 +212,57 @@ class nn():
                     self.hidden[layer][neuron].calculate(self.hidden[layer-1])
         for output in self.outputs:
             output.calculate(self.hidden[self.hiddenLayers-1])
+            output.output = translate(output.output)
         return self.outputs
+    def train(self):
+        '''
+        1: get a heatmap
+        2: calculate output
+        3: compare output to expected
+        4: back propigate error       
+        '''
 
+        for i in range(8):
+            print("Training on image %s of 10..."%(str(i)))
+            inName = "test"+str(i+1)+".png"
+            inImage = pygame.image.load(inName)
+            render(inImage,0,0,400,400)
+            pygame.display.update()
+            #getting heatmap
+            inMap = makeTempMap(40)
+            outName = "result"+str(i+1)+".png"
+            outImage = pygame.image.load(outName)
+            render(outImage,0,0,400,400)
+            pygame.display.update()
+            #getting expected
+            outMap = makeTempMap(40)
+            #calculating output
+            testResult = self.inputMap(inMap)
+            resultMap = fixRawOut(testResult,40)
+            
+            for j in range(40):
+                for k in range(40):
+                    corrections = self.outputs[(j*40)+k].backProp(outMap[j][k],self.hidden[len(self.hidden)-1])
+                    for p in range(len(corrections)):
+                        self.hidden[len(self.hidden)-1][p].weights[self.outputs[(j*40)+k].ident] = corrections[p]
 
+        
+                    
+                    
+            
+            
+print("attempting to train network...")
+
+#print("Created Heat Map!")
+a = nn(1600,3,1600,1600)
+#print("Created Neural Network!")
+a.train()
+print("Trained Network!\nRunning Sample...")
 render(heatmap,0,0,400,400)
 pygame.display.update()
 temp = makeTempMap(40)
-print("Created Heat Map!")
-a = nn(1600,3,1600,1600)
-print("Created Neural Network!")
 rawOut = a.inputMap(temp)
-print("Ran Heat Map Through Network!")
+#print("Ran Heat Map Through Network!")
 Out = fixRawOut(rawOut,40)
 renderOut(Out)
 
